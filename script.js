@@ -10,16 +10,11 @@ async function generateOutfit() {
     message.textContent = "Finding Roblox user...";
 
     try {
-        const response = await fetch("https://users.roblox.com/v1/usernames/users", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                usernames: [username],
-                excludeBannedUsers: true
-            })
-        });
+        const response = await fetch(
+            "https://users.roblox.com/v1/users/search?keyword=" +
+            encodeURIComponent(username) +
+            "&limit=10"
+        );
 
         if (!response.ok) {
             throw new Error("Roblox returned HTTP " + response.status);
@@ -27,12 +22,14 @@ async function generateOutfit() {
 
         const result = await response.json();
 
-        if (!result.data || result.data.length === 0) {
+        const user = result.data.find(
+            u => u.name.toLowerCase() === username.toLowerCase()
+        );
+
+        if (!user) {
             message.textContent = "Roblox user not found.";
             return;
         }
-
-        const user = result.data[0];
 
         message.innerHTML = `
             <strong>Found them! 🔥</strong><br><br>
