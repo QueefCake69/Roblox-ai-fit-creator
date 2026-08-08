@@ -2,10 +2,8 @@ const WORKER_URL =
     "https://roblox-ai-fit-creator.6-lilsaggy-6.workers.dev";
 
 async function generateOutfit() {
-    const usernameInput = document.getElementById("username");
+    const username = document.getElementById("username").value.trim();
     const message = document.getElementById("message");
-
-    const username = usernameInput.value.trim();
 
     if (!username) {
         message.textContent = "Enter a Roblox username first!";
@@ -15,12 +13,13 @@ async function generateOutfit() {
     message.textContent = "Finding Roblox user...";
 
     try {
-        // 1. Find the Roblox user
+        // Find the Roblox user
         const userResponse = await fetch(
-            WORKER_URL +
-            "/roblox/user?username=" +
+            WORKER_URL + "/roblox/user?username=" +
             encodeURIComponent(username)
         );
+
+        const userResult = await userResponse.json();
 
         if (!userResponse.ok) {
             throw new Error(
@@ -28,23 +27,22 @@ async function generateOutfit() {
             );
         }
 
-        const userResult = await userResponse.json();
-
-        if (!userResult.found || !userResult.user) {
+        if (!userResult.found) {
             message.textContent = "Roblox user not found.";
             return;
         }
 
         const user = userResult.user;
 
-        // 2. Get the user's avatar
-        message.textContent = "Loading their avatar...";
+        message.textContent = "Loading avatar...";
 
+        // Get the avatar
         const avatarResponse = await fetch(
-            WORKER_URL +
-            "/roblox/avatar?userId=" +
+            WORKER_URL + "/roblox/avatar?userId=" +
             encodeURIComponent(user.id)
         );
+
+        const avatarResult = await avatarResponse.json();
 
         if (!avatarResponse.ok) {
             throw new Error(
@@ -52,53 +50,48 @@ async function generateOutfit() {
             );
         }
 
-        const avatarResult = await avatarResponse.json();
-
-        if (!avatarResult.success || !avatarResult.avatar) {
-            throw new Error("Could not get avatar information.");
+        if (!avatarResult.success) {
+            throw new Error("Avatar data could not be loaded.");
         }
 
         const avatar = avatarResult.avatar;
 
-        // 3. Display the user and their avatar items
-        let itemsHTML = "";
+        // Create the item list
+        let items = "";
 
         if (avatar.assets && avatar.assets.length > 0) {
-            itemsHTML = avatar.assets
-                .map(asset => {
-                    return `
-                        <div class="avatar-item">
-                            <strong>${escapeHTML(asset.name)}</strong><br>
-                            Type: ${escapeHTML(asset.assetType.name)}<br>
-                            Asset ID: ${asset.id}
-                        </div>
-                    `;
-                })
-                .join("");
+            for (const asset of avatar.assets) {
+                items += `
+                    <div>
+                        <strong>${escapeHTML(asset.name)}</strong>
+                        <br>
+                        Type: ${escapeHTML(asset.assetType.name)}
+                        <br>
+                        ID: ${asset.id}
+                    </div>
+                    <br>
+                `;
+            }
         } else {
-            itemsHTML = "<p>No avatar items found.</p>";
+            items = "No avatar items found.";
         }
 
         message.innerHTML = `
-            <div class="avatar-result">
-                <h2>🔥 ${escapeHTML(user.displayName)}</h2>
+            <h2>🔥 ${escapeHTML(user.displayName)}</h2>
 
-                <p>
-                    <strong>Username:</strong>
-                    ${escapeHTML(user.name)}
-                </p>
+            <p>
+                <strong>Username:</strong>
+                ${escapeHTML(user.name)}
+            </p>
 
-                <p>
-                    <strong>User ID:</strong>
-                    ${user.id}
-                </p>
+            <p>
+                <strong>User ID:</strong>
+                ${user.id}
+            </p>
 
-                <h3>👕 Current Avatar Items</h3>
+            <h3>👕 Current Avatar Items</h3>
 
-                <div class="avatar-items">
-                    ${itemsHTML}
-                </div>
-            </div>
+            ${items}
         `;
 
     } catch (error) {
@@ -107,8 +100,6 @@ async function generateOutfit() {
     }
 }
 
-
-// Prevent usernames or item names from injecting HTML
 function escapeHTML(value) {
     return String(value)
         .replace(/&/g, "&amp;")
@@ -116,4 +107,4 @@ function escapeHTML(value) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
-                }
+}
