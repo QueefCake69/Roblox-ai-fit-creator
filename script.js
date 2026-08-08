@@ -4,15 +4,21 @@ const WORKER_URL =
 async function generateOutfit() {
     const message = document.getElementById("message");
 
-    // Temporary test user ID
+    if (!message) {
+        alert("The message element was not found.");
+        return;
+    }
+
+    // Temporary test ID: Streety
     const userId = 275021;
 
     message.textContent = "🧍 Loading avatar...";
 
     try {
         const response = await fetch(
-            WORKER_URL + "/roblox/avatar?userId=" + userId,
+            WORKER_URL + "/roblox/avatar?userId=" + userId + "&v=3",
             {
+                method: "GET",
                 cache: "no-store"
             }
         );
@@ -21,40 +27,48 @@ async function generateOutfit() {
 
         if (!response.ok) {
             throw new Error(
-                "Avatar request failed: HTTP " + response.status +
-                " — " + text
+                "Avatar request failed: HTTP " +
+                response.status +
+                " — " +
+                text
             );
         }
 
         const result = JSON.parse(text);
 
-        if (!result.success) {
-            throw new Error("Avatar data was not returned.");
+        if (!result.success || !result.avatar) {
+            throw new Error("No avatar data returned.");
         }
 
         const avatar = result.avatar;
 
-        let items = "";
+        let itemsHTML = "";
 
-        for (const asset of avatar.assets || []) {
-            items += `
-                <div class="avatar-item">
-                    <strong>${escapeHTML(asset.name)}</strong><br>
-                    Type: ${escapeHTML(asset.assetType.name)}<br>
-                    Asset ID: ${asset.id}
-                </div>
-                <br>
-            `;
+        if (avatar.assets && avatar.assets.length) {
+            itemsHTML = avatar.assets.map(function(asset) {
+                return `
+                    <div class="avatar-item">
+                        <strong>${escapeHTML(asset.name)}</strong><br>
+                        Type: ${escapeHTML(asset.assetType.name)}<br>
+                        Asset ID: ${asset.id}
+                    </div>
+                    <br>
+                `;
+            }).join("");
+        } else {
+            itemsHTML = "<p>No avatar items found.</p>";
         }
 
         message.innerHTML = `
             <h2>🔥 Avatar Loaded!</h2>
 
-            <p><strong>Roblox User ID:</strong> ${userId}</p>
+            <p>
+                <strong>Roblox User ID:</strong> ${userId}
+            </p>
 
             <h3>Current Avatar</h3>
 
-            ${items || "No items found."}
+            ${itemsHTML}
         `;
 
     } catch (error) {
