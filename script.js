@@ -2,148 +2,65 @@ const WORKER_URL =
     "https://roblox-ai-fit-creator.6-lilsaggy-6.workers.dev";
 
 async function generateOutfit() {
-    const usernameElement = document.getElementById("username");
-    const messageElement = document.getElementById("message");
+    const message = document.getElementById("message");
 
-    if (!usernameElement || !messageElement) {
-        return;
-    }
+    // Temporary test user ID
+    const userId = 275021;
 
-    const username = usernameElement.value.trim();
-
-    if (!username) {
-        messageElement.textContent = "Enter a Roblox username first!";
-        return;
-    }
+    message.textContent = "🧍 Loading avatar...";
 
     try {
-        messageElement.textContent = "🔎 Finding Roblox user...";
-
-        const userResponse = await fetch(
-            WORKER_URL +
-            "/roblox/user?username=" +
-            encodeURIComponent(username),
+        const response = await fetch(
+            WORKER_URL + "/roblox/avatar?userId=" + userId,
             {
                 cache: "no-store"
             }
         );
 
-        const userText = await userResponse.text();
+        const text = await response.text();
 
-        if (!userResponse.ok) {
+        if (!response.ok) {
             throw new Error(
-                "User lookup failed: HTTP " +
-                userResponse.status
+                "Avatar request failed: HTTP " + response.status +
+                " — " + text
             );
         }
 
-        const userData = JSON.parse(userText);
+        const result = JSON.parse(text);
 
-        if (!userData.found || !userData.user) {
-            messageElement.textContent =
-                "❌ Roblox user not found.";
-            return;
-        }
-
-        const user = userData.user;
-
-        messageElement.textContent =
-            "🧍 Loading " + user.name + "'s avatar...";
-
-        const avatarResponse = await fetch(
-            WORKER_URL +
-            "/roblox/avatar?userId=" +
-            encodeURIComponent(user.id),
-            {
-                cache: "no-store"
-            }
-        );
-
-        const avatarText = await avatarResponse.text();
-
-        if (!avatarResponse.ok) {
-            throw new Error(
-                "Avatar lookup failed: HTTP " +
-                avatarResponse.status
-            );
-        }
-
-        const avatarData = JSON.parse(avatarText);
-
-        if (!avatarData.success || !avatarData.avatar) {
+        if (!result.success) {
             throw new Error("Avatar data was not returned.");
         }
 
-        const avatar = avatarData.avatar;
+        const avatar = result.avatar;
 
-        let itemsHTML = "";
+        let items = "";
 
-        if (avatar.assets && avatar.assets.length > 0) {
-            itemsHTML = avatar.assets.map(asset => `
+        for (const asset of avatar.assets || []) {
+            items += `
                 <div class="avatar-item">
-                    <strong>${escapeHTML(asset.name)}</strong>
-                    <br>
-                    Type: ${escapeHTML(asset.assetType.name)}
-                    <br>
+                    <strong>${escapeHTML(asset.name)}</strong><br>
+                    Type: ${escapeHTML(asset.assetType.name)}<br>
                     Asset ID: ${asset.id}
                 </div>
-            `).join("");
-        } else {
-            itemsHTML = "<p>No avatar items found.</p>";
+                <br>
+            `;
         }
 
-        /*
-         * Roblox thumbnail service.
-         * This displays the user's current Roblox avatar.
-         */
-        const avatarImage =
-            "https://tr.rbxcdn.com/avatar-thumbnail/image" +
-            "?userId=" + encodeURIComponent(user.id) +
-            "&width=420" +
-            "&height=420" +
-            "&format=png";
+        message.innerHTML = `
+            <h2>🔥 Avatar Loaded!</h2>
 
-        messageElement.innerHTML = `
-            <div class="avatar-result">
+            <p><strong>Roblox User ID:</strong> ${userId}</p>
 
-                <h2>🔥 ${escapeHTML(user.displayName)}</h2>
+            <h3>Current Avatar</h3>
 
-                <img
-                    src="${avatarImage}"
-                    alt="Roblox avatar"
-                    style="
-                        width:300px;
-                        height:300px;
-                        object-fit:contain;
-                        display:block;
-                        margin:20px auto;
-                        border-radius:16px;
-                    "
-                >
-
-                <p>
-                    <strong>Username:</strong>
-                    ${escapeHTML(user.name)}
-                </p>
-
-                <p>
-                    <strong>Roblox ID:</strong>
-                    ${user.id}
-                </p>
-
-                <h3>👕 Current Avatar</h3>
-
-                <div class="avatar-items">
-                    ${itemsHTML}
-                </div>
-
-            </div>
+            ${items || "No items found."}
         `;
 
     } catch (error) {
         console.error(error);
 
-        messageElement.innerHTML = `
+        message.innerHTML = `
             <strong>❌ ERROR</strong>
             <br><br>
             ${escapeHTML(error.message)}
