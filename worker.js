@@ -16,33 +16,25 @@ export default {
 
     const url = new URL(request.url);
 
-    // Worker health check
+    // Test
     if (url.pathname === "/") {
       return new Response(
         JSON.stringify({
           success: true,
           message: "Roblox AI Fit Worker is running!"
         }),
-        {
-          status: 200,
-          headers: corsHeaders
-        }
+        { status: 200, headers: corsHeaders }
       );
     }
 
-    // Find Roblox user
+    // USER LOOKUP
     if (url.pathname === "/roblox/user") {
       const username = url.searchParams.get("username");
 
       if (!username) {
         return new Response(
-          JSON.stringify({
-            error: "Username is required"
-          }),
-          {
-            status: 400,
-            headers: corsHeaders
-          }
+          JSON.stringify({ error: "Username is required" }),
+          { status: 400, headers: corsHeaders }
         );
       }
 
@@ -58,12 +50,11 @@ export default {
         if (!response.ok) {
           return new Response(
             JSON.stringify({
-              error: "Roblox returned HTTP " + response.status
-            }),
-            {
+              error: "Roblox user API error",
               status: response.status,
-              headers: corsHeaders
-            }
+              details: data
+            }),
+            { status: response.status, headers: corsHeaders }
           );
         }
 
@@ -71,114 +62,90 @@ export default {
           u => u.name.toLowerCase() === username.toLowerCase()
         );
 
-        if (!user) {
-          return new Response(
-            JSON.stringify({
-              found: false,
-              user: null
-            }),
-            {
-              status: 200,
-              headers: corsHeaders
-            }
-          );
-        }
-
         return new Response(
           JSON.stringify({
-            found: true,
-            user: user
+            found: !!user,
+            user: user || null
           }),
-          {
-            status: 200,
-            headers: corsHeaders
-          }
+          { status: 200, headers: corsHeaders }
         );
 
       } catch (error) {
         return new Response(
           JSON.stringify({
-            error: error.message
+            error: "User request failed",
+            details: error.message
           }),
-          {
-            status: 500,
-            headers: corsHeaders
-          }
+          { status: 500, headers: corsHeaders }
         );
       }
     }
 
-    // Get user's avatar
+    // AVATAR LOOKUP
     if (url.pathname === "/roblox/avatar") {
       const userId = url.searchParams.get("userId");
 
       if (!userId) {
         return new Response(
-          JSON.stringify({
-            error: "userId is required"
-          }),
-          {
-            status: 400,
-            headers: corsHeaders
-          }
+          JSON.stringify({ error: "userId is required" }),
+          { status: 400, headers: corsHeaders }
         );
       }
 
       try {
-        const avatarResponse = await fetch(
+        const avatarURL =
           "https://avatar.roblox.com/v1/users/" +
           encodeURIComponent(userId) +
-          "/avatar"
-        );
+          "/avatar";
 
-        const avatarData = await avatarResponse.json();
+        const response = await fetch(avatarURL);
 
-        if (!avatarResponse.ok) {
+        const text = await response.text();
+
+        let data;
+
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = { rawResponse: text };
+        }
+
+        if (!response.ok) {
           return new Response(
             JSON.stringify({
-              error: "Roblox avatar API returned HTTP " +
-                avatarResponse.status,
-              details: avatarData
+              error: "Roblox avatar API error",
+              status: response.status,
+              details: data
             }),
-            {
-              status: avatarResponse.status,
-              headers: corsHeaders
-            }
+            { status: response.status, headers: corsHeaders }
           );
         }
 
         return new Response(
           JSON.stringify({
             success: true,
-            avatar: avatarData
+            avatar: data
           }),
-          {
-            status: 200,
-            headers: corsHeaders
-          }
+          { status: 200, headers: corsHeaders }
         );
 
       } catch (error) {
         return new Response(
           JSON.stringify({
-            error: error.message
+            error: "Avatar request failed",
+            details: error.message
           }),
-          {
-            status: 500,
-            headers: corsHeaders
-          }
+          { status: 500, headers: corsHeaders }
         );
       }
     }
 
     return new Response(
       JSON.stringify({
-        error: "Route not found"
+        error: "Route not found",
+        path: url.pathname
       }),
-      {
-        status: 404,
-        headers: corsHeaders
-      }
+      { status: 404, headers: corsHeaders }
     );
   }
 };
