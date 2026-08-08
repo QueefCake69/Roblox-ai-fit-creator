@@ -14,19 +14,24 @@ async function generateOutfit() {
     try {
         const userResponse = await fetch(
             WORKER_URL + "/roblox/user?username=" + encodeURIComponent(username),
-            { cache: "no-store" }
+            {
+                method: "GET",
+                cache: "no-store"
+            }
         );
 
-        const userData = await userResponse.json();
+        const userText = await userResponse.text();
 
         if (!userResponse.ok) {
             throw new Error(
                 "User lookup failed: HTTP " +
                 userResponse.status +
                 " — " +
-                JSON.stringify(userData)
+                userText
             );
         }
+
+        const userData = JSON.parse(userText);
 
         if (!userData.found || !userData.user) {
             message.textContent = "Roblox user not found.";
@@ -35,25 +40,33 @@ async function generateOutfit() {
 
         const user = userData.user;
 
-        message.textContent = "Loading " + user.name + "'s avatar...";
+        message.textContent =
+            "Loading " + user.name + "'s avatar...";
 
         const avatarResponse = await fetch(
-            WORKER_URL + "/roblox/avatar?userId=" + user.id,
-            { cache: "no-store" }
+            WORKER_URL +
+            "/roblox/avatar?userId=" +
+            encodeURIComponent(user.id),
+            {
+                method: "GET",
+                cache: "no-store"
+            }
         );
 
-        const avatarData = await avatarResponse.json();
+        const avatarText = await avatarResponse.text();
 
         if (!avatarResponse.ok) {
             throw new Error(
                 "Avatar lookup failed: HTTP " +
                 avatarResponse.status +
                 " — " +
-                JSON.stringify(avatarData)
+                avatarText
             );
         }
 
-        if (!avatarData.success) {
+        const avatarData = JSON.parse(avatarText);
+
+        if (!avatarData.success || !avatarData.avatar) {
             throw new Error("Avatar data was not returned.");
         }
 
