@@ -3,50 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Roblox Outfit Generator</title>
-
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-
     <div class="container">
 
         <h1>ROBLOX OUTFIT GENERATOR</h1>
 
-        <p>
-            Enter your Roblox username and generate outfits from items you own.
-        </p>
+        <p>Enter a Roblox User ID to load their avatar.</p>
 
         <div class="search-box">
-
             <input
-                id="username"
-                type="text"
-                placeholder="Enter Roblox username"
+                id="userId"
+                type="number"
+                placeholder="Enter Roblox User ID"
             >
 
             <button onclick="generateOutfit()">
                 GENERATE
             </button>
-
         </div>
 
         <div id="result">
-
             <h2>Your Outfit</h2>
-
-            <p id="message">
-                Enter your username to get started.
-            </p>
-
+            <p id="message">Enter a Roblox User ID to get started.</p>
         </div>
 
     </div>
 
-    <!-- Load our JavaScript -->
-    <script src="avatar.js?v=10"></script>
-
+    <script src="main.js?v=100"></script>
 </body>
 </html>
