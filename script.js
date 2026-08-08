@@ -6,7 +6,6 @@ async function generateOutfit() {
     const messageElement = document.getElementById("message");
 
     if (!usernameElement || !messageElement) {
-        alert("Website setup error: username or message element is missing.");
         return;
     }
 
@@ -17,28 +16,24 @@ async function generateOutfit() {
         return;
     }
 
-    messageElement.textContent = "🔎 Finding Roblox user...";
-
     try {
-        // STEP 1: Find Roblox user
-        const userURL =
+        messageElement.textContent = "🔎 Finding Roblox user...";
+
+        const userResponse = await fetch(
             WORKER_URL +
             "/roblox/user?username=" +
-            encodeURIComponent(username);
-
-        const userResponse = await fetch(userURL, {
-            method: "GET",
-            cache: "no-store"
-        });
+            encodeURIComponent(username),
+            {
+                cache: "no-store"
+            }
+        );
 
         const userText = await userResponse.text();
 
         if (!userResponse.ok) {
             throw new Error(
                 "User lookup failed: HTTP " +
-                userResponse.status +
-                " — " +
-                userText
+                userResponse.status
             );
         }
 
@@ -52,68 +47,79 @@ async function generateOutfit() {
 
         const user = userData.user;
 
-        // STEP 2: Get avatar
         messageElement.textContent =
             "🧍 Loading " + user.name + "'s avatar...";
 
-        const avatarURL =
+        const avatarResponse = await fetch(
             WORKER_URL +
             "/roblox/avatar?userId=" +
-            encodeURIComponent(user.id);
-
-        const avatarResponse = await fetch(avatarURL, {
-            method: "GET",
-            cache: "no-store"
-        });
+            encodeURIComponent(user.id),
+            {
+                cache: "no-store"
+            }
+        );
 
         const avatarText = await avatarResponse.text();
 
         if (!avatarResponse.ok) {
             throw new Error(
                 "Avatar lookup failed: HTTP " +
-                avatarResponse.status +
-                " — " +
-                avatarText
+                avatarResponse.status
             );
         }
 
         const avatarData = JSON.parse(avatarText);
 
         if (!avatarData.success || !avatarData.avatar) {
-            throw new Error("Roblox returned no avatar data.");
+            throw new Error("Avatar data was not returned.");
         }
 
         const avatar = avatarData.avatar;
 
-        // STEP 3: Build item list
         let itemsHTML = "";
 
         if (avatar.assets && avatar.assets.length > 0) {
-            itemsHTML = avatar.assets.map(function(asset) {
-                const assetType =
-                    asset.assetType && asset.assetType.name
-                        ? asset.assetType.name
-                        : "Unknown";
-
-                return `
-                    <div class="avatar-item">
-                        <strong>${escapeHTML(asset.name)}</strong>
-                        <br>
-                        <span>Type: ${escapeHTML(assetType)}</span>
-                        <br>
-                        <span>Asset ID: ${asset.id}</span>
-                    </div>
-                `;
-            }).join("");
+            itemsHTML = avatar.assets.map(asset => `
+                <div class="avatar-item">
+                    <strong>${escapeHTML(asset.name)}</strong>
+                    <br>
+                    Type: ${escapeHTML(asset.assetType.name)}
+                    <br>
+                    Asset ID: ${asset.id}
+                </div>
+            `).join("");
         } else {
             itemsHTML = "<p>No avatar items found.</p>";
         }
 
-        // STEP 4: Display result
+        /*
+         * Roblox thumbnail service.
+         * This displays the user's current Roblox avatar.
+         */
+        const avatarImage =
+            "https://tr.rbxcdn.com/avatar-thumbnail/image" +
+            "?userId=" + encodeURIComponent(user.id) +
+            "&width=420" +
+            "&height=420" +
+            "&format=png";
+
         messageElement.innerHTML = `
             <div class="avatar-result">
 
                 <h2>🔥 ${escapeHTML(user.displayName)}</h2>
+
+                <img
+                    src="${avatarImage}"
+                    alt="Roblox avatar"
+                    style="
+                        width:300px;
+                        height:300px;
+                        object-fit:contain;
+                        display:block;
+                        margin:20px auto;
+                        border-radius:16px;
+                    "
+                >
 
                 <p>
                     <strong>Username:</strong>
@@ -135,7 +141,7 @@ async function generateOutfit() {
         `;
 
     } catch (error) {
-        console.error("Roblox AI Fit Error:", error);
+        console.error(error);
 
         messageElement.innerHTML = `
             <strong>❌ ERROR</strong>
@@ -145,8 +151,6 @@ async function generateOutfit() {
     }
 }
 
-
-// Keeps usernames/item names from being interpreted as HTML
 function escapeHTML(value) {
     return String(value)
         .replace(/&/g, "&amp;")
