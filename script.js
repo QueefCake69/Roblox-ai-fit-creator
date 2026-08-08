@@ -10,70 +10,80 @@ async function generateOutfit() {
         return;
     }
 
-    message.textContent = "Finding Roblox user...";
-
     try {
-        // Find the Roblox user
-        const userResponse = await fetch(
-            WORKER_URL + "/roblox/user?username=" +
-            encodeURIComponent(username)
-        );
+        message.textContent = "1/2 Finding Roblox user...";
 
-        const userResult = await userResponse.json();
+        const userURL =
+            WORKER_URL +
+            "/roblox/user?username=" +
+            encodeURIComponent(username);
+
+        const userResponse = await fetch(userURL);
+
+        const userText = await userResponse.text();
 
         if (!userResponse.ok) {
             throw new Error(
-                "User lookup failed: HTTP " + userResponse.status
+                "USER REQUEST: HTTP " +
+                userResponse.status +
+                " — " +
+                userText
             );
         }
 
-        if (!userResult.found) {
+        const userResult = JSON.parse(userText);
+
+        if (!userResult.found || !userResult.user) {
             message.textContent = "Roblox user not found.";
             return;
         }
 
         const user = userResult.user;
 
-        message.textContent = "Loading avatar...";
+        message.textContent =
+            "2/2 Loading " + user.name + "'s avatar...";
 
-        // Get the avatar
-        const avatarResponse = await fetch(
-            WORKER_URL + "/roblox/avatar?userId=" +
-            encodeURIComponent(user.id)
-        );
+        const avatarURL =
+            WORKER_URL +
+            "/roblox/avatar?userId=" +
+            encodeURIComponent(user.id);
 
-        const avatarResult = await avatarResponse.json();
+        const avatarResponse = await fetch(avatarURL);
+
+        const avatarText = await avatarResponse.text();
 
         if (!avatarResponse.ok) {
             throw new Error(
-                "Avatar lookup failed: HTTP " + avatarResponse.status
+                "AVATAR REQUEST: HTTP " +
+                avatarResponse.status +
+                " — " +
+                avatarText
             );
         }
 
-        if (!avatarResult.success) {
-            throw new Error("Avatar data could not be loaded.");
+        const avatarResult = JSON.parse(avatarText);
+
+        if (!avatarResult.success || !avatarResult.avatar) {
+            throw new Error("Avatar data was empty.");
         }
 
         const avatar = avatarResult.avatar;
 
-        // Create the item list
-        let items = "";
+        let itemsHTML = "";
 
         if (avatar.assets && avatar.assets.length > 0) {
-            for (const asset of avatar.assets) {
-                items += `
-                    <div>
-                        <strong>${escapeHTML(asset.name)}</strong>
-                        <br>
-                        Type: ${escapeHTML(asset.assetType.name)}
-                        <br>
-                        ID: ${asset.id}
-                    </div>
+            itemsHTML = avatar.assets.map(asset => `
+                <div>
+                    <strong>${escapeHTML(asset.name)}</strong>
                     <br>
-                `;
-            }
+                    Type: ${escapeHTML(asset.assetType.name)}
+                    <br>
+                    Asset ID: ${asset.id}
+                </div>
+                <br>
+            `).join("");
         } else {
-            items = "No avatar items found.";
+            itemsHTML = "No avatar items found.";
         }
 
         message.innerHTML = `
@@ -91,7 +101,7 @@ async function generateOutfit() {
 
             <h3>👕 Current Avatar Items</h3>
 
-            ${items}
+            ${itemsHTML}
         `;
 
     } catch (error) {
