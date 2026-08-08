@@ -2,114 +2,151 @@ const WORKER_URL =
     "https://roblox-ai-fit-creator.6-lilsaggy-6.workers.dev";
 
 async function generateOutfit() {
-    const username = document.getElementById("username").value.trim();
-    const message = document.getElementById("message");
+    const usernameElement = document.getElementById("username");
+    const messageElement = document.getElementById("message");
 
-    if (!username) {
-        message.textContent = "Enter a Roblox username first!";
+    if (!usernameElement || !messageElement) {
+        alert("Website setup error: username or message element is missing.");
         return;
     }
 
-    try {
-        message.textContent = "1/2 Finding Roblox user...";
+    const username = usernameElement.value.trim();
 
+    if (!username) {
+        messageElement.textContent = "Enter a Roblox username first!";
+        return;
+    }
+
+    messageElement.textContent = "🔎 Finding Roblox user...";
+
+    try {
+        // STEP 1: Find Roblox user
         const userURL =
             WORKER_URL +
             "/roblox/user?username=" +
             encodeURIComponent(username);
 
-        const userResponse = await fetch(userURL);
+        const userResponse = await fetch(userURL, {
+            method: "GET",
+            cache: "no-store"
+        });
 
         const userText = await userResponse.text();
 
         if (!userResponse.ok) {
             throw new Error(
-                "USER REQUEST: HTTP " +
+                "User lookup failed: HTTP " +
                 userResponse.status +
                 " — " +
                 userText
             );
         }
 
-        const userResult = JSON.parse(userText);
+        const userData = JSON.parse(userText);
 
-        if (!userResult.found || !userResult.user) {
-            message.textContent = "Roblox user not found.";
+        if (!userData.found || !userData.user) {
+            messageElement.textContent =
+                "❌ Roblox user not found.";
             return;
         }
 
-        const user = userResult.user;
+        const user = userData.user;
 
-        message.textContent =
-            "2/2 Loading " + user.name + "'s avatar...";
+        // STEP 2: Get avatar
+        messageElement.textContent =
+            "🧍 Loading " + user.name + "'s avatar...";
 
         const avatarURL =
             WORKER_URL +
             "/roblox/avatar?userId=" +
             encodeURIComponent(user.id);
 
-        const avatarResponse = await fetch(avatarURL);
+        const avatarResponse = await fetch(avatarURL, {
+            method: "GET",
+            cache: "no-store"
+        });
 
         const avatarText = await avatarResponse.text();
 
         if (!avatarResponse.ok) {
             throw new Error(
-                "AVATAR REQUEST: HTTP " +
+                "Avatar lookup failed: HTTP " +
                 avatarResponse.status +
                 " — " +
                 avatarText
             );
         }
 
-        const avatarResult = JSON.parse(avatarText);
+        const avatarData = JSON.parse(avatarText);
 
-        if (!avatarResult.success || !avatarResult.avatar) {
-            throw new Error("Avatar data was empty.");
+        if (!avatarData.success || !avatarData.avatar) {
+            throw new Error("Roblox returned no avatar data.");
         }
 
-        const avatar = avatarResult.avatar;
+        const avatar = avatarData.avatar;
 
+        // STEP 3: Build item list
         let itemsHTML = "";
 
         if (avatar.assets && avatar.assets.length > 0) {
-            itemsHTML = avatar.assets.map(asset => `
-                <div>
-                    <strong>${escapeHTML(asset.name)}</strong>
-                    <br>
-                    Type: ${escapeHTML(asset.assetType.name)}
-                    <br>
-                    Asset ID: ${asset.id}
-                </div>
-                <br>
-            `).join("");
+            itemsHTML = avatar.assets.map(function(asset) {
+                const assetType =
+                    asset.assetType && asset.assetType.name
+                        ? asset.assetType.name
+                        : "Unknown";
+
+                return `
+                    <div class="avatar-item">
+                        <strong>${escapeHTML(asset.name)}</strong>
+                        <br>
+                        <span>Type: ${escapeHTML(assetType)}</span>
+                        <br>
+                        <span>Asset ID: ${asset.id}</span>
+                    </div>
+                `;
+            }).join("");
         } else {
-            itemsHTML = "No avatar items found.";
+            itemsHTML = "<p>No avatar items found.</p>";
         }
 
-        message.innerHTML = `
-            <h2>🔥 ${escapeHTML(user.displayName)}</h2>
+        // STEP 4: Display result
+        messageElement.innerHTML = `
+            <div class="avatar-result">
 
-            <p>
-                <strong>Username:</strong>
-                ${escapeHTML(user.name)}
-            </p>
+                <h2>🔥 ${escapeHTML(user.displayName)}</h2>
 
-            <p>
-                <strong>User ID:</strong>
-                ${user.id}
-            </p>
+                <p>
+                    <strong>Username:</strong>
+                    ${escapeHTML(user.name)}
+                </p>
 
-            <h3>👕 Current Avatar Items</h3>
+                <p>
+                    <strong>Roblox ID:</strong>
+                    ${user.id}
+                </p>
 
-            ${itemsHTML}
+                <h3>👕 Current Avatar</h3>
+
+                <div class="avatar-items">
+                    ${itemsHTML}
+                </div>
+
+            </div>
         `;
 
     } catch (error) {
-        console.error(error);
-        message.textContent = "ERROR: " + error.message;
+        console.error("Roblox AI Fit Error:", error);
+
+        messageElement.innerHTML = `
+            <strong>❌ ERROR</strong>
+            <br><br>
+            ${escapeHTML(error.message)}
+        `;
     }
 }
 
+
+// Keeps usernames/item names from being interpreted as HTML
 function escapeHTML(value) {
     return String(value)
         .replace(/&/g, "&amp;")
