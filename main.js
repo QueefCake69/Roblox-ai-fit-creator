@@ -1,76 +1,48 @@
-const WORKER_URL = "https://roblox-ai-fit-creator.6-lilsaggy-6.workers.dev";
+const WORKER_URL =
+    "https://roblox-ai-fit-creator.6-lilsaggy-6.workers.dev";
 
 async function generateOutfit() {
-    const username = document.getElementById("username").value.trim();
+    const userId = document.getElementById("userId").value.trim();
     const message = document.getElementById("message");
 
-    if (!username) {
-        message.textContent = "Enter a Roblox username first!";
+    if (!userId) {
+        message.textContent = "Enter a Roblox User ID first!";
         return;
     }
 
-    message.textContent = "Finding " + username + "...";
+    message.textContent = "🧍 Loading avatar...";
 
     try {
-        const userResponse = await fetch(
-            WORKER_URL + "/roblox/user?username=" + encodeURIComponent(username),
-            {
-                method: "GET",
-                cache: "no-store"
-            }
-        );
-
-        const userText = await userResponse.text();
-
-        if (!userResponse.ok) {
-            throw new Error(
-                "User lookup failed: HTTP " +
-                userResponse.status +
-                " — " +
-                userText
-            );
-        }
-
-        const userData = JSON.parse(userText);
-
-        if (!userData.found || !userData.user) {
-            message.textContent = "Roblox user not found.";
-            return;
-        }
-
-        const user = userData.user;
-
-        message.textContent =
-            "Loading " + user.name + "'s avatar...";
-
-        const avatarResponse = await fetch(
+        const response = await fetch(
             WORKER_URL +
             "/roblox/avatar?userId=" +
-            encodeURIComponent(user.id),
+            encodeURIComponent(userId) +
+            "&v=" +
+            Date.now(),
             {
-                method: "GET",
                 cache: "no-store"
             }
         );
 
-        const avatarText = await avatarResponse.text();
+        const text = await response.text();
 
-        if (!avatarResponse.ok) {
+        if (!response.ok) {
             throw new Error(
-                "Avatar lookup failed: HTTP " +
-                avatarResponse.status +
+                "Avatar request failed: HTTP " +
+                response.status +
                 " — " +
-                avatarText
+                text
             );
         }
 
-        const avatarData = JSON.parse(avatarText);
+        const data = JSON.parse(text);
 
-        if (!avatarData.success || !avatarData.avatar) {
+        if (!data.success || !data.avatar) {
             throw new Error("Avatar data was not returned.");
         }
 
-        const assets = avatarData.avatar.assets || [];
+        const avatar = data.avatar;
+        const assets = avatar.assets || [];
 
         let items = "";
 
@@ -86,16 +58,11 @@ async function generateOutfit() {
         });
 
         message.innerHTML = `
-            <h2>🔥 ${escapeHTML(user.displayName)}</h2>
+            <h2>🔥 Avatar Loaded!</h2>
 
             <p>
-                <strong>Username:</strong>
-                ${escapeHTML(user.name)}
-            </p>
-
-            <p>
-                <strong>Roblox ID:</strong>
-                ${user.id}
+                <strong>Roblox User ID:</strong>
+                ${escapeHTML(userId)}
             </p>
 
             <h3>👕 Current Avatar</h3>
