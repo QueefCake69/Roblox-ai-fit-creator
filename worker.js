@@ -1,22 +1,24 @@
 export default {
   async fetch(request) {
-    const url = new URL(request.url);
-
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type"
+      "Access-Control-Allow-Headers": "*"
     };
 
+    // Handle browser CORS preflight
     if (request.method === "OPTIONS") {
       return new Response(null, {
+        status: 204,
         headers: corsHeaders
       });
     }
 
+    const url = new URL(request.url);
+
     if (url.pathname !== "/roblox/user") {
-      return new Response("Not found", {
-        status: 404,
+      return new Response("Worker is running!", {
+        status: 200,
         headers: corsHeaders
       });
     }
@@ -37,29 +39,13 @@ export default {
     }
 
     try {
-      const robloxURL =
+      const robloxResponse = await fetch(
         "https://users.roblox.com/v1/users/search?keyword=" +
         encodeURIComponent(username) +
-        "&limit=10";
+        "&limit=10"
+      );
 
-      const response = await fetch(robloxURL);
-
-      if (!response.ok) {
-        return new Response(
-          JSON.stringify({
-            error: "Roblox returned HTTP " + response.status
-          }),
-          {
-            status: response.status,
-            headers: {
-              ...corsHeaders,
-              "Content-Type": "application/json"
-            }
-          }
-        );
-      }
-
-      const data = await response.json();
+      const data = await robloxResponse.json();
 
       const user = data.data?.find(
         u => u.name.toLowerCase() === username.toLowerCase()
@@ -71,6 +57,7 @@ export default {
           user: user || null
         }),
         {
+          status: 200,
           headers: {
             ...corsHeaders,
             "Content-Type": "application/json"
