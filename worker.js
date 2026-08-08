@@ -16,7 +16,10 @@ export default {
 
     const url = new URL(request.url);
 
-    // Worker test
+    // =========================
+    // WORKER TEST
+    // =========================
+
     if (url.pathname === "/") {
       return json({
         success: true,
@@ -25,7 +28,7 @@ export default {
     }
 
     // =========================
-    // FIND USER BY USERNAME
+    // USERNAME → USER ID
     // =========================
 
     if (url.pathname === "/roblox/user") {
@@ -39,11 +42,39 @@ export default {
 
       try {
         const response = await fetch(
+          "https://users.roblox.com/v1/users/search",
+          {
+            method: "GET",
+            headers: {
+              "Accept": "application/json",
+              "User-Agent": "Mozilla/5.0"
+            }
+          }
+        );
+
+        // IMPORTANT:
+        // We don't actually use this response.
+        // This route is intentionally handled below.
+      } catch (error) {
+        // Ignore
+      }
+
+      /*
+       * Roblox's username search can return 520/522
+       * when called from Cloudflare.
+       *
+       * Try the username endpoint instead.
+       */
+
+      try {
+        const response = await fetch(
           "https://users.roblox.com/v1/usernames/users",
           {
             method: "POST",
             headers: {
-              "Content-Type": "application/json"
+              "Content-Type": "application/json",
+              "Accept": "application/json",
+              "User-Agent": "Mozilla/5.0"
             },
             body: JSON.stringify({
               usernames: [username],
@@ -56,42 +87,44 @@ export default {
 
         if (!response.ok) {
           return json({
-            error: "Roblox username API returned HTTP " +
-              response.status,
-            details: text
-          }, corsHeaders, response.status);
-        }
-
-        let data;
-
-        try {
-          data = JSON.parse(text);
-        } catch {
-          return json({
-            error: "Roblox returned invalid JSON",
+            error: "Roblox username lookup failed",
+            status: response.status,
             details: text
           }, corsHeaders, 502);
         }
 
-        const user = data.data?.find(
-          u => u.name.toLowerCase() === username.toLowerCase()
-        );
+        const data = JSON.parse(text);
+
+        if (!data.data || data.data.length === 0) {
+          return json({
+            found: false,
+            user: null
+          }, corsHeaders);
+        }
+
+        const user = data.data[0];
 
         return json({
-          found: !!user,
-          user: user || null
+          found: true,
+          user: {
+            id: user.id,
+            name: user.name,
+            displayName: user.displayName,
+            previousUsernames: user.previousUsernames || [],
+            hasVerifiedBadge: user.hasVerifiedBadge || false
+          }
         }, corsHeaders);
 
       } catch (error) {
         return json({
-          error: "User request failed",
+          error: "Username lookup failed",
           details: error.message
-        }, corsHeaders, 500);
+        }, corsHeaders, 502);
       }
     }
 
     // =========================
-    // GET AVATAR
+    // USER ID → AVATAR
     // =========================
 
     if (url.pathname === "/roblox/avatar") {
@@ -107,7 +140,14 @@ export default {
         const response = await fetch(
           "https://avatar.roblox.com/v1/users/" +
           encodeURIComponent(userId) +
-          "/avatar"
+          "/avatar",
+          {
+            method: "GET",
+            headers: {
+              "Accept": "application/json",
+              "User-Agent": "Mozilla/5.0"
+            }
+          }
         );
 
         const text = await response.text();
@@ -120,16 +160,7 @@ export default {
           }, corsHeaders, response.status);
         }
 
-        let data;
-
-        try {
-          data = JSON.parse(text);
-        } catch {
-          return json({
-            error: "Roblox returned invalid avatar JSON",
-            details: text
-          }, corsHeaders, 502);
-        }
+        const data = JSON.parse(text);
 
         return json({
           success: true,
@@ -140,7 +171,7 @@ export default {
         return json({
           error: "Avatar request failed",
           details: error.message
-        }, corsHeaders, 500);
+        }, corsHeaders, 502);
       }
     }
 
@@ -152,7 +183,7 @@ export default {
 
 function json(data, headers, status = 200) {
   return new Response(JSON.stringify(data), {
-    status: status,
-    headers: headers
+    status,
+    headers
   });
 }
