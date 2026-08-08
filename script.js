@@ -11,7 +11,7 @@ async function generateOutfit() {
 
     try {
         const workerURL =
-            "PASTE-YOUR-WORKER-URL-HERE/roblox/user?username=" +
+            "https://roblox-ai-fit-creator.6-lilsaggy-6.workers.dev/roblox/user?username=" +
             encodeURIComponent(username);
 
         const response = await fetch(workerURL);
